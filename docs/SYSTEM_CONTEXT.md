@@ -14,4 +14,3 @@ Rules:
 - If something is missing, ask before implementing.
 
 This is an implementation task, not a design task.
-
