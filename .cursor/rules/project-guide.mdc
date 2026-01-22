@@ -1,0 +1,324 @@
+---
+alwaysApply: true
+---
+
+1. Project Overview
+Project Name
+
+LinkedIn Automation Platform
+
+Goal
+
+Build a safe, LinkedIn-compliant automation platform that:
+
+Automates outreach using a local browser-based agent
+
+Keeps the backend as the single source of truth
+
+Uses strict execution contracts to prevent bans
+
+Avoids credential storage entirely
+
+This is not a scraping tool.
+This is controlled automation with explicit safety boundaries.
+
+2. Core Architecture (High Level)
+User (Dashboard)
+   ↓
+Backend (Control Plane)  ←── Authoritative
+   ↓
+Local Agent (Execution Plane, Playwright)
+
+Key Principle
+
+Backend decides
+
+Agent executes
+
+Cursor (AI) assists but never redesigns
+
+3. Repository Structure (Authoritative)
+/linkedin
+├── apps
+│   ├── backend
+│   │   ├── prisma
+│   │   │   └── schema.prisma      # FINAL, audited Prisma schema
+│   │   ├── src                    # Backend code (to be written)
+│   │   ├── .env                   # DATABASE_URL only
+│   │   └── .env.example
+│   ├── agent                      # Local Playwright executor
+│   │   └── rules/                 # Agent operating constraints
+│   └── frontend                   # Next.js dashboard (later)
+│
+├── antigravity                    # Deprecated (DO NOT USE)
+│
+├── packages
+│   ├── shared-types               # DTOs, enums, types only
+│   ├── shared-utils               # Pure functions only
+│   └── shared-config              # Static config only
+│
+├── docs                            # Historical reference
+│
+└── PROJECT_CONTEXT.md              # THIS FILE
+
+4. Non-Negotiable System Invariants
+
+These must never be violated.
+
+Security & Compliance
+
+❌ No LinkedIn credentials stored server-side
+
+❌ No cookies stored server-side
+
+✅ Browser session lives on user’s machine
+
+✅ Backend tracks session validity only
+
+Execution
+
+One LinkedInAccount → one active Agent (v1)
+
+No parallel execution per LinkedIn account
+
+Agent has zero autonomy
+
+Agent never retries, optimizes, or decides
+
+AI Constraints (Cursor)
+
+Cursor must not redesign
+
+Cursor must not invent features
+
+Cursor must not merge domains
+
+Cursor must ask if something is missing
+
+5. Identity & Auth Model (Locked)
+Entities
+
+User – platform account (auth provider managed)
+
+LinkedInAccount – session validity only
+
+Agent – local executor bound 1:1 to LinkedInAccount
+
+AgentToken – short/rotatable execution credential
+
+Rules
+
+User ≠ Agent ≠ AgentToken
+
+Agent tokens cannot access dashboard
+
+User tokens cannot execute jobs
+
+Compromise blast radius is always minimal
+
+6. Backend ↔ Agent Execution Contract (Locked)
+Agent MAY:
+
+Register itself
+
+Send heartbeat
+
+Pull jobs
+
+Execute exactly one job at a time
+
+Report factual results
+
+Upload screenshots
+
+Stop immediately on error
+
+Agent MUST NEVER:
+
+Decide what to execute
+
+Retry jobs
+
+Reorder jobs
+
+Infer backend state
+
+Work offline
+
+Handle credentials
+
+Continue after refusal
+
+Backend is authoritative for:
+
+Job creation
+
+Job ordering
+
+Execution permission
+
+Risk decisions
+
+State transitions
+
+7. Backend Internal Domains (Locked)
+
+Backend is split into six internal domains.
+
+1. Auth & Identity
+
+Owns: User
+
+Does NOT manage sessions internally
+
+2. LinkedInAccount Management
+
+Owns: LinkedInAccount
+
+Tracks session validity only
+
+3. Agent Management
+
+Owns: Agent, AgentToken
+
+Enforces 1:1 account ↔ agent
+
+Handles heartbeat + revocation
+
+4. Job & Execution Control
+
+Owns: Job, JobResult
+
+Issues work
+
+Decides retries
+
+Commits state
+
+5. Risk & Safety
+
+Owns: RateLimitRule, Violation, RiskScore
+
+Has veto power only
+
+Cannot directly mutate other domains
+
+6. Observability & Audit
+
+Owns: AuditLog, Metric
+
+Append-only
+
+Read-only
+
+Never affects decisions
+
+8. Database (Prisma) – FINAL STATE
+Location
+apps/backend/prisma/schema.prisma
+
+Status
+
+✅ Audited
+
+✅ Validated
+
+✅ No forbidden models
+
+✅ Minimal inverse relations (Prisma-required only)
+
+Cursor must:
+
+Treat this schema as authoritative
+
+Never add tables without explicit instruction
+
+Never add auth/session tables
+
+Never add browser or execution state
+
+9. Development Rules for Cursor (CRITICAL)
+
+Cursor MUST follow these rules:
+
+Never jump phases
+
+Never write code without a stated goal
+
+Never invent missing requirements
+
+Never “improve” architecture
+
+Always ask if unsure
+
+Respect domain ownership
+
+Respect execution contract
+
+Prefer deletion over addition
+
+If a request violates these rules, Cursor must stop and ask.
+
+10. Roadmap (Exact Order)
+Phase 1 – Database & Ownership (DONE)
+
+Schema designed
+
+Schema validated
+
+Phase 2 – Backend Service Skeleton (NEXT)
+
+Create folders per domain
+
+No business logic yet
+
+One service = one domain
+
+Phase 3 – Internal APIs
+
+Map which service can write which table
+
+Enforce write boundaries
+
+Phase 4 – Agent Implementation
+
+Playwright executor
+
+Strict adherence to execution contract
+
+Phase 5 – Frontend
+
+Dashboard
+
+No direct DB access
+
+Backend only
+
+11. How to Use This in Cursor
+First message in Cursor:
+
+“Read PROJECT_CONTEXT.md fully and acknowledge.
+Do not redesign anything.”
+
+Every task must:
+
+Reference this file
+
+State which phase it belongs to
+
+State what is explicitly allowed
+
+12. Final Rule
+
+If Cursor ever does something that makes you think
+“this feels clever” → it’s probably wrong.
+
+This system is built to be:
+
+boring
+
+explicit
+
+constrained
+
+safe

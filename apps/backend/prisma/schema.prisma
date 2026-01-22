@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  userId    String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  linkedInAccounts LinkedInAccount[]
+  createdJobs      Job[]
+}
+
+model LinkedInAccount {
+  linkedInAccountId String   @id @default(cuid())
+  userId            String
+  profileUrl        String
+  displayName       String
+
+  // CONNECTED | EXPIRED | DISCONNECTED
+  validationStatus  String
+
+  // HEALTHY | DEGRADED | SUSPENDED
+  healthStatus      String
+
+  sessionValidAt DateTime?
+  metadata       Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user       User   @relation(fields: [userId], references: [userId])
+  agent      Agent?
+  jobs       Job[]
+  violations Violation[]
+  riskScores RiskScore[]
+}
+
+model Agent {
+  agentId           String   @id @default(cuid())
+  linkedInAccountId String   @unique
+
+  // REGISTERED | ACTIVE | IDLE | TERMINATED
+  state           String
+  lastHeartbeatAt DateTime?
+  registeredAt    DateTime @default(now())
+  terminatedAt    DateTime?
+  deletedAt       DateTime?
+
+  linkedInAccount LinkedInAccount @relation(fields: [linkedInAccountId], references: [linkedInAccountId])
+
+  // Prisma-required inverse relations (NOT for business logic)
+  jobs       Job[]       @relation("AgentJobs")
+  jobResults JobResult[]
+}
+
+model Job {
+  jobId             String   @id @default(cuid())
+  linkedInAccountId String
+  createdByUserId   String
+  assignedAgentId   String?
+
+  // VISIT_PROFILE | SEND_CONNECTION | SEND_MESSAGE | etc
+  jobType    String
+  parameters Json
+
+  // PENDING | ASSIGNED | EXECUTING | COMPLETED | FAILED | CANCELLED
+  state    String
+  priority Int
+
+  createdAt   DateTime @default(now())
+  assignedAt  DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  failureReason String?
+  deletedAt     DateTime?
+
+  linkedInAccount LinkedInAccount @relation(fields: [linkedInAccountId], references: [linkedInAccountId])
+  createdBy       User            @relation(fields: [createdByUserId], references: [userId])
+  assignedAgent   Agent?          @relation("AgentJobs", fields: [assignedAgentId], references: [agentId])
+
+  jobResult  JobResult?
+  violations Violation[]
+}
+
+model JobResult {
+  resultId String @id @default(cuid())
+  jobId    String @unique
+  agentId  String
+
+  // SUCCESS | FAILED
+  status String
+
+  result       Json
+  errorMessage String?
+  completedAt  DateTime @default(now())
+
+  job   Job   @relation(fields: [jobId], references: [jobId])
+  agent Agent @relation(fields: [agentId], references: [agentId])
+}
+
+model RateLimitRule {
+  ruleId         String   @id @default(cuid())
+  actionType     String
+  maxCount       Int
+  windowDuration Int
+  isActive       Boolean
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  violations Violation[]
+}
+
+model Violation {
+  violationId       String   @id @default(cuid())
+  linkedInAccountId String
+  ruleId            String
+  jobId             String?
+
+  violationType String
+  severity      String
+  detectedAt    DateTime @default(now())
+  resolvedAt    DateTime?
+
+  linkedInAccount LinkedInAccount @relation(fields: [linkedInAccountId], references: [linkedInAccountId])
+  rule            RateLimitRule   @relation(fields: [ruleId], references: [ruleId])
+  job             Job?            @relation(fields: [jobId], references: [jobId])
+}
+
+model RiskScore {
+  scoreId           String   @id @default(cuid())
+  linkedInAccountId String
+  score             Float
+
+  // LOW | MEDIUM | HIGH | CRITICAL
+  riskLevel String
+
+  calculatedAt DateTime @default(now())
+  factors      Json
+
+  linkedInAccount LinkedInAccount @relation(fields: [linkedInAccountId], references: [linkedInAccountId])
+}
+
+model AuditLog {
+  logId     String   @id @default(cuid())
+  domain    String
+  eventType String
+  entityType String
+  entityId  String
+  actorType String
+  actorId   String
+  payload   Json
+  timestamp DateTime @default(now())
+}
+
+model Metric {
+  metricId          String   @id @default(cuid())
+  metricName        String
+  metricValue       Float
+  dimensions        Json
+  aggregationWindow String
+  recordedAt        DateTime @default(now())
+}

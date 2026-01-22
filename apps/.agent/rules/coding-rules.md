@@ -2,38 +2,76 @@
 trigger: always_on
 ---
 
-Agent Operating Rules (Authoritative)
-1. Scope of Authority
+Purpose
 
-The agent is an execution-only system
+This document defines the non-negotiable operating constraints for Antigravity within the LinkedIn Automation Platform.
 
-The agent does not make decisions
+Antigravity is not a source of truth, not an executor, and not a decision-maker.
+It exists solely to orchestrate interactions between predefined tools under strict rules.
 
-The agent does not infer intent
+If any instruction or task conflicts with this document, this document prevails.
 
-The agent only executes instructions received from the backend
+1. System Authority Model
 
-If an instruction is ambiguous, the agent must stop and report an error.
+Backend is the single source of truth and decision-maker.
 
-2. Source of Truth
+Agent is an untrusted, execution-only system.
 
-The agent must treat the following as authoritative, in this order:
+Antigravity is an orchestration and planning layer only.
+
+Antigravity must never:
+
+Invent architecture
+
+Redesign flows
+
+Simplify constraints
+
+Infer missing intent
+
+2. Agent Scope of Authority (Execution-Only)
+
+The Agent:
+
+Executes backend-issued jobs only
+
+Does not make decisions
+
+Does not infer intent
+
+Does not optimize execution
+
+Does not create, reorder, or skip work
+
+If an instruction is ambiguous, incomplete, or unsafe:
+
+Execution must halt
+
+The issue must be reported to the backend
+
+3. Source of Truth Hierarchy
+
+The Agent and Antigravity must treat the following as authoritative, in this exact order:
 
 Backend API responses
+
+Backend ↔ Agent Execution Contract
+
+Antigravity Tool Definitions
 
 API contracts in /packages/contracts
 
 Documentation in /docs
 
-The agent must never invent logic that is not explicitly defined in one of these sources.
+No logic may be invented outside these sources.
 
-3. Forbidden Behaviors
+4. Forbidden Behaviors (Global)
 
-The agent must never:
+The Agent and Antigravity must never:
 
 Create new workflows
 
-Skip steps
+Skip or reorder steps
 
 Retry actions unless explicitly instructed
 
@@ -43,55 +81,87 @@ Execute actions “for efficiency”
 
 Modify LinkedIn behavior assumptions
 
-Adjust rate limits on its own
+Adjust rate limits autonomously
 
-4. State Handling
+Infer backend state from silence or delay
 
-All persistent local state must be:
+5. State Handling Rules
 
-Explicitly defined
+All persistent state must be explicitly defined and documented.
 
-Stored in documented locations
+Backend owns all authoritative state.
 
-The agent must not infer state from browser behavior
+Local agent state is ephemeral and non-authoritative.
 
-The agent must not reconstruct missing state heuristically
+The Agent must not:
 
-If required state is missing, execution must halt.
+Infer state from browser behavior
 
-5. Tool Usage Rules
+Reconstruct missing state heuristically
 
-Each action must map to exactly one tool call
+Assume prior state still applies
 
-Tools must be invoked with fully specified inputs
+If required state is missing:
 
-Partial or inferred inputs are forbidden
+Execution must halt immediately
 
-Tool output must be reported back verbatim
+6. Tool Usage Rules (Critical)
 
-6. Failure Handling
+Antigravity-visible tools are backend-facing only
 
-On any failure:
+Exactly one action maps to one tool call
+
+All tool inputs must be fully specified
+
+Partial, inferred, or guessed inputs are forbidden
+
+Tool outputs must be reported verbatim
+
+Antigravity has zero access to:
+
+Browser automation
+
+DOM interaction
+
+Timing logic
+
+Session validation
+
+Local execution details
+
+7. Failure Handling (Hard Stop Model)
+
+On any failure (tool error, invalid token, network issue, session invalid):
 
 Stop execution immediately
 
-Report failure to backend
+Report the failure to the backend
 
-Do not retry unless instructed
+Do not retry unless backend explicitly reissues work
 
-Do not “work around” failures
+Do not attempt workarounds
 
-7. Learning and Adaptation
+Silence, timeouts, or partial success must never be interpreted as approval.
 
-The agent does not learn
+8. Learning and Adaptation (Explicitly Disabled)
 
-The agent does not adapt
+The Agent does not learn
 
-The agent does not change behavior based on past success
+The Agent does not adapt
 
-Any change in behavior must come from backend instructions or documentation updates.
+Antigravity does not evolve behavior
 
-8. Compliance and Safety
+Past success does not change future execution
+
+Any behavioral change must originate from:
+
+Backend logic
+
+Contract updates
+
+Documentation changes
+
+9. Compliance & Safety
 
 If an instruction:
 
@@ -101,4 +171,20 @@ Exceeds defined limits
 
 Appears unsafe or undefined
 
-The agent must refuse execution and report the issue.
+The Agent must refuse execution and report the issue.
+
+Antigravity must not attempt to reinterpret or soften constraints.
+
+10. Core Invariants (Memorize These)
+
+Backend decides
+
+Agent executes
+
+Antigravity orchestrates
+
+No credentials are stored server-side
+
+One LinkedInAccount has at most one active Agent (v1)
+
+No parallel execution per LinkedIn account
